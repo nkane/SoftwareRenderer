@@ -25,7 +25,7 @@ global_variable uint8 GlobalRunning;
 global_variable HWND GlobalWindowHandle;
 
 LRESULT CALLBACK
-Win32MainWindowClassBack(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
+Win32MainWindowCallback(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
     LRESULT result = 0;
     switch (message)
@@ -61,21 +61,21 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR longPo
     WNDCLASSA windowClass = { 0 };
 
     windowClass.style               = (CS_HREDRAW | CS_VREDRAW | CS_OWNDC);
-    windowClass.lpfnWndProc         = Win32MainWindowClassBack;
+    windowClass.lpfnWndProc         = Win32MainWindowCallback;
     windowClass.hInstance           = handleInstance;
     windowClass.hCursor             = LoadCursor(NULL, IDC_ARROW);
-    windowClass.lpszClassName       = "HiddenPixelWindowClass";
+    windowClass.lpszClassName       = "WindowClass";
 
     if (RegisterClassA(&windowClass))
     {
         GlobalWindowHandle = CreateWindowExA(0,
                                           windowClass.lpszClassName,
-                                          "Hidden Pixel Engine - Lesson 1",
+                                          "Software Renderer - Lesson 1.1",
                                           WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                           CW_USEDEFAULT,
                                           CW_USEDEFAULT,
-                                          1280,
-                                          720,
+                                          800,
+                                          600,
                                           0,
                                           0,
                                           handleInstance,
@@ -99,4 +99,5 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR longPo
             }
         }
     }
+    return 0;
 }

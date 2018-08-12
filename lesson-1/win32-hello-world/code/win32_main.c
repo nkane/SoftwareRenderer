@@ -11,6 +11,6 @@
 int WINAPI
 WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR longPointerCommandLine, int numberCommmandShow)
 {
-    MessageBox(NULL, "Hello, World!", "Hello, World!", 0);
+    MessageBox(NULL, "Hello, World!", "Hello, World", 0);
     return 0;
 }
