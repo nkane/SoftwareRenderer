@@ -7,7 +7,9 @@
 #define local_persist       static
 #define global_variable     static
 
-#define Align16(value) ((value + 15) & ~15)
+#define varying_size    6
+#define screen_width    400
+#define screen_height   300
 
 typedef int8_t      int8;
 typedef int16_t     int16;
@@ -120,7 +122,7 @@ typedef union _v4f
 typedef struct _vertex
 {
     v3f     Point;
-    float   VaryingArray[4];
+    float   VaryingArray[varying_size];
 } vertex;
 
 typedef struct _triangle
@@ -161,8 +163,8 @@ CalculateVaryingSlope(triangle t)
         return NULL;
     }
     // TODO(nick): release this after usage.
-    v2f *slopeArray = VirtualAlloc(0, (sizeof(v2f) * 4), (MEM_RESERVE | MEM_COMMIT), PAGE_READWRITE);
-    for (int i = 0; i < 4; i++)
+    v2f *slopeArray = VirtualAlloc(0, (sizeof(v2f) * varying_size), (MEM_RESERVE | MEM_COMMIT), PAGE_READWRITE);
+    for (int i = 0; i < varying_size; i++)
     {
         float r1 = v1[i];
         float r2 = v2[i];
@@ -178,43 +180,51 @@ CalculateVaryingSlope(triangle t)
     return slopeArray;
 }
 
-internal void
-Render(win32_offscreen_buffer buffer)
+internal v4f
+FragmentShaderTest(float *varying, int length)
 {
-    // NOTE: win32 DIBs start from the bottom and go up
-    //       this code will render from the bottom of the
-    //       memory address space to the top of the
-    //       address space.
-    //       image should be red on top and green on bottom
-    uint8 *row = (uint8 *)buffer.Memory;
-    // NOTE: go to the end of the image buffer - last address
-    row += (buffer.BytesPerRow * (buffer.Height - 1));
-    uint32 halfHeight = buffer.Height / 2;
-    for (int y = 0; y < buffer.Height; y++)
+    v4f result = 
     {
-        uint32 *pixels = (uint32 *)row;
-        for (int x = 0; x < buffer.Width; x++)
-        {
-            // Blue  - 0x000000FF
-            // Red   - 0x00FF0000
-            // Green - 0x0000FF00
-            // NOTE: render top half red and bottom half green
-            if (y <= halfHeight) 
-            {
-                *pixels = 0x00FF0000;
-            }
-            else
-            {
-                *pixels = 0x0000FF00;
-            }
-            pixels++;
-        }
-        row -= buffer.BytesPerRow;
+        .R = varying[0],
+        .G = varying[1],
+        .B = varying[2],
+        .A = varying[3],
+    };
+    return result;
+}
+
+internal void
+IncrementVarying(float *varying, v2f *slopes, float x, float y)
+{
+    for (int i = 0; i < varying_size; i++)
+    {
+        varying[i] += slopes[i].X * x + slopes[i].Y * y;
     }
 }
 
 internal void
-RenderHalfTriangle(win32_offscreen_buffer buffer, int scanlineStart, int scanlineEnd, v2f point1, float inverseSlope1, v2f point2,  float inverseSlope2)
+IncrementVaryingX(float *varying, v2f *slopes)
+{
+    for (int i = 0; i < varying_size; i++)
+    {
+        varying[i] += slopes[i].X;
+    }
+}
+
+internal float * 
+CalculateVaryingBase(vertex *base, v2f *slopes, float x, float y)
+{
+    // TODO(nick): make sure to free this!
+    float *varyingBase = VirtualAlloc(0, (sizeof(float) * varying_size), (MEM_RESERVE | MEM_COMMIT), PAGE_READWRITE);
+    CopyMemory(varyingBase, base, varying_size);
+    float xDiff = (x - base->Point.X);
+    float yDiff = (y - base->Point.Y);
+    IncrementVarying(varyingBase, slopes, xDiff, yDiff);
+    return varyingBase;
+}
+
+internal void 
+RenderHalfTriangle(win32_offscreen_buffer buffer, int scanlineStart, int scanlineEnd, v2f point1, float inverseSlope1, v2f point2, float inverseSlope2, vertex baseVertex, v2f *varyingSlopes, v4f (*fragmentShaderFunction)(float *varyingBase, int length))
 {
     // NOTE: in win32 first line of DIB buffer is actually the last memory line
     uint8 *row = (uint8 *)buffer.Memory;
@@ -239,13 +249,49 @@ RenderHalfTriangle(win32_offscreen_buffer buffer, int scanlineStart, int scanlin
         scanlineRowEnd -= (i * buffer.BytesPerRow);
         scanlineRowEnd += (xHighOffset * buffer.BytesPerPixel);
 
+        float *varyingBase = CalculateVaryingBase(&baseVertex, varyingSlopes, xLowOffset, i);
+
         // NOTE: because of the way DIBs are stored, the beginning row will be a higher memory address
         while (scanlineRowBegin < scanlineRowEnd)
         {
+            v4f fragment = fragmentShaderFunction(varyingBase, varying_size);
+            //SetPixelAlphaBlend(buffer, j, i, fragment.R, fragment.G, fragment.B, fragment.A);
             uint32 *pixels = (uint32 *)scanlineRowBegin;
-            *pixels = 0xFFFFFFFF;
+            if (fragment.A >= 255)
+            {
+                uint32 pixelRed     = (*pixels) | 0x00FF0000;
+                uint32 pixelGreen   = (*pixels) | 0x0000FF00;
+                uint32 pixelBlue    = (*pixels) | 0x000000FF;
+                uint32 pixelAlpha   = (*pixels) | 0xFF000000;
+                *pixels |= (0xFFFFFFFF & (pixelRed << 16));
+                *pixels |= (0xFFFFFFFF & (pixelGreen << 8));
+                *pixels |= (0xFFFFFFFF & (pixelBlue));
+            }
+            else
+            {
+                float af = fragment.A / 255.0f;
+                float oma = 1.0f - 255.0f;
+                uint32 pixelRed     = (*pixels) | 0x00FF0000;
+                uint32 pixelGreen   = (*pixels) | 0x0000FF00;
+                uint32 pixelBlue    = (*pixels) | 0x000000FF;
+                uint32 pixelAlpha   = (*pixels) | 0xFF000000;
+
+                uint32 red = (uint32)fragment.R;
+                red = (pixelRed * oma + red * af);
+                uint32 green = (uint32)fragment.G;
+                green = (pixelGreen * oma + green * af);
+                uint32 blue = (uint32)fragment.B;
+                blue = (pixelBlue * oma + blue * af);
+
+                *pixels |= (0xFFFFFFFF & (red << 16));
+                *pixels |= (0xFFFFFFFF & (green << 8));
+                *pixels |= (0xFFFFFFFF & (blue));
+            }
             scanlineRowBegin += buffer.BytesPerPixel;
+            IncrementVaryingX(varyingBase, varyingSlopes);
         }
+
+        VirtualFree(varyingBase, 0, MEM_RELEASE);
 
         xLeftOffset += inverseSlope1;
         xRightOffset += inverseSlope2;
@@ -253,7 +299,7 @@ RenderHalfTriangle(win32_offscreen_buffer buffer, int scanlineStart, int scanlin
 }
 
 internal void
-RenderTriangle(win32_offscreen_buffer buffer, triangle t, v4f (*fragmentShaderFunction)(float *varingBase, int length))
+RenderTriangle(win32_offscreen_buffer buffer, triangle t, v4f (*fragmentShaderFunction)(float *varyingBase, int length))
 {
     v2f point1 = 
     {
@@ -297,6 +343,13 @@ RenderTriangle(win32_offscreen_buffer buffer, triangle t, v4f (*fragmentShaderFu
     {
         return;
     }
+    
+    // TODO(nick): free this ...
+    v2f *varyingSlopes = CalculateVaryingSlope(t);
+    if (varyingSlopes == NULL)
+    {
+        return;
+    }
 
     int scanlineStart = ceil(point1.Y);
     float minY = (point2.Y < point3.Y) ? point2.Y : point3.Y;
@@ -309,7 +362,7 @@ RenderTriangle(win32_offscreen_buffer buffer, triangle t, v4f (*fragmentShaderFu
         v2f vector2 = SubtractV2f(point3, point1);
         float inverseSlope1 = vector1.X / vector1.Y;
         float inverseSlope2 = vector2.X / vector2.Y;
-        RenderHalfTriangle(GlobalBackBuffer, scanlineStart, scanlineEnd, point1, inverseSlope2, point1, inverseSlope1);
+        RenderHalfTriangle(GlobalBackBuffer, scanlineStart, scanlineEnd, point1, inverseSlope2, point1, inverseSlope1, t.V1, varyingSlopes, FragmentShaderTest);
     }
 
     // render bottom half
@@ -337,7 +390,7 @@ RenderTriangle(win32_offscreen_buffer buffer, triangle t, v4f (*fragmentShaderFu
     {
         float inverseSlope1 = vector1.X / vector1.Y;
         float inverseSlope2 = vector2.X / vector2.Y;
-        RenderHalfTriangle(GlobalBackBuffer, scanlineStart, scanlineEnd, start2, inverseSlope2, start1, inverseSlope1);
+        RenderHalfTriangle(GlobalBackBuffer, scanlineStart, scanlineEnd, start2, inverseSlope2, start1, inverseSlope1, t.V1, varyingSlopes, FragmentShaderTest);
     }
 }
 
@@ -385,7 +438,6 @@ Win32DisplayBufferInWindow(HDC deviceContext, int windowWidth, int windowHeight,
     SelectObject(buffer->BitmapDeviceContext, buffer->BitmapHandle);
     BitBlt(deviceContext, 0, 0, buffer->Bitmap.bmWidth, buffer->Bitmap.bmHeight, buffer->BitmapDeviceContext, 0, 0, SRCCOPY);
 }
-
 
 internal void
 ClearBuffer(win32_offscreen_buffer buffer)
@@ -441,7 +493,6 @@ Win32MainWindowCallBack(HWND windowHandle, UINT message, WPARAM wParam, LPARAM l
     return result;
 }
 
-// TODO(nick): tutorial #1 - win32 window context
 INT WINAPI 
 WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -462,8 +513,8 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                                             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                             CW_USEDEFAULT,
                                             CW_USEDEFAULT,
-                                            1280,
-                                            720,
+                                            screen_width,
+                                            screen_height,
                                             0,
                                             0,
                                             handleInstance,
@@ -473,7 +524,7 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
         {
             GlobalRunning = true;
             HDC deviceContext = GetDC(GlobalWindowHandle);
-            Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
+            Win32ResizeDIBSection(&GlobalBackBuffer, screen_width, screen_height);
 
             while (GlobalRunning)
             {
@@ -514,18 +565,30 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                     .V1 = 
                     {
                         .Point = trianglePoint1,
+                        .VaryingArray = 
+                        {
+                            255, 0, 0, 255,
+                        },
                     },
                     .V2 = 
                     {
                         .Point = trianglePoint2,
+                        .VaryingArray = 
+                        {
+                            255, 0, 0, 255,
+                        },
                     },
                     .V3 = 
                     {
                         .Point = trianglePoint3,
+                        .VaryingArray = 
+                        {
+                            255, 0, 0, 255,
+                        },
                     },
                 };
 
-                RenderTriangle(GlobalBackBuffer, t, NULL);
+                RenderTriangle(GlobalBackBuffer, t, FragmentShaderTest);
 
                 win32_window_dimension dimension = Win32GetWindowDimension(GlobalWindowHandle);
                 Win32DisplayBufferInWindow(deviceContext, dimension.Width, dimension.Height, &GlobalBackBuffer);

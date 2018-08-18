@@ -121,9 +121,10 @@ Render(win32_offscreen_buffer buffer)
         uint32 *pixels = (uint32 *)row;
         for (int x = 0; x < buffer.Width; x++)
         {
-            // Blue  - 0x000000FF
+            // Alpha - 0xFF000000
             // Red   - 0x00FF0000
             // Green - 0x0000FF00
+            // Blue  - 0x000000FF
             // NOTE: render top half red and bottom half green
             if (y <= halfHeight) 
             {
