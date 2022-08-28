@@ -200,7 +200,7 @@ DrawTriangle(win32_offscreen_buffer *buffer, vector3f point_1, vector3f point_2,
     real32 zCrossProduct = Cross_Product_2D_Vector3f(vertexLeft, vertexRight);
     // keep clockwise faces
     // cull counter clockwise faces
-    if (zCrossProduct < 0) 
+    if (zCrossProduct < 0.0f) 
     {
         return;
     }

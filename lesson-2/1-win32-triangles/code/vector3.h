@@ -45,7 +45,7 @@ Dot_Product_2D_Vector3f(vector3f v1, vector3f v2)
 inline real32
 Cross_Product_2D_Vector3f(vector3f v1, vector3f v2)
 {
-    return (v1.X * v2.Y) + (v1.Y * v2.X);
+    return (v1.X * v2.Y) - (v1.Y * v2.X);
 }
 
 typedef struct _vector3i
