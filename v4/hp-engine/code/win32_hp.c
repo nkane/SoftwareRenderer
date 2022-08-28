@@ -8,8 +8,8 @@
 #define global_variable     static
 
 #define varying_size    6
-#define screen_width    400
-#define screen_height   300
+#define screen_width    640
+#define screen_height   480
 
 typedef int8_t      int8;
 typedef int16_t     int16;
@@ -525,7 +525,7 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
             GlobalRunning = true;
             HDC deviceContext = GetDC(GlobalWindowHandle);
             Win32ResizeDIBSection(&GlobalBackBuffer, screen_width, screen_height);
-
+            float value = 0.0f;
             while (GlobalRunning)
             {
                 MSG message;
@@ -538,25 +538,26 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                     TranslateMessage(&message);
                     DispatchMessage(&message);
                 }
+                value += 0.001;
 
                 v3f trianglePoint1 = 
                 {
-                    .X = 100.0f,
-                    .Y = 50.0f,
+                    .X = sinf(value - 1.5f - sinf(value / 1.3538f)) * 100.0f + 320.0f,
+                    .Y = cosf(value - 1.5f - sin(value / 1.3538f)) * 100.0f + 240.0f,
                     .Z = 0.0f,
                 };
 
                 v3f trianglePoint2 = 
                 {
-                    .X = 125.0f,
-                    .Y = 200.0f,
+                    .X = sinf(value + 1.0f) * 100.0f + 320.0f,
+                    .Y = cos(value + 2.0f) * 100.0f + 240.0f,
                     .Z = 0.0f,
                 };
 
                 v3f trianglePoint3 = 
                 {
-                    .X = 50.0f,
-                    .Y = 100.0f,
+                    .X = sinf(value + 1.0f) * 100.0f + 320.0f,
+                    .Y = cosf(value + 1.0f) * 100.0f + 240.0f,
                     .Z = 0.0f,
                 };
 

@@ -329,8 +329,8 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                 }
 
                 value += 0.01f;
-                real32 a = sinf(value - 1.5f - sinf(value / 1.3538f)) * 100.0f + 320.0f;
-                real32 b = cosf(value - 1.5f - sinf(value / 1.3538f)) * 100.0f + 240.0f;
+                real32 a = sin(value - 1.5f - sinf(value / 1.3538f)) * 100.0f + 320.0f;
+                real32 b = cos(value - 1.5f - sin(value / 1.3538f)) * 100.0f + 240.0f;
                 vector3f point_1 = 
                 { 
                     .X = a,
@@ -338,8 +338,8 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                     .Z = 0.0f
                 };
 
-                real32 c = sinf(value + 2.0f) * 100.0f + 320.0f;
-                real32 d = cosf(value + 2.0f) * 100.0f + 240.0f;
+                real32 c = sin(value + 2.0f) * 100.0f + 320.0f;
+                real32 d = cos(value + 2.0f) * 100.0f + 240.0f;
                 vector3f point_2 = 
                 {
                     .X = c,
@@ -347,8 +347,8 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                     .Z = 0.0f
                 };
 
-                real32 e = sinf(value + 1.0f) * 100.0f + 320.0f;
-                real32 f = cosf(value + 1.0f) * 100.0f + 240.0f;
+                real32 e = sin(value + 1.0f) * 100.0f + 320.0f;
+                real32 f = cos(value + 1.0f) * 100.0f + 240.0f;
                 vector3f point_3 = 
                 {
                     .X = e,
