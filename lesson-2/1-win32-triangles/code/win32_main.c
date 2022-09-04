@@ -46,7 +46,7 @@ typedef struct _win32_window_dimension
     int Height;
 } win32_window_dimension;
 
-#define MonitorRefreshHz 60
+#define MonitorRefreshHz 120
 #define GameUpdateHz (MonitorRefreshHz / 2)
 
 global_variable bool GlobalRunning;
@@ -133,9 +133,9 @@ ClearBuffer(win32_offscreen_buffer *buffer)
         for (int y = 0; y < buffer->Height; y++)
         {
             int idx = (x + y * buffer->Width) * buffer->BytesPerPixel;
-            pixel[idx]     = 0;     //blue
-            pixel[idx + 1] = 0;     // green
-            pixel[idx + 2] = 0;     // red
+            pixel[idx]     = 255;     //blue
+            pixel[idx + 1] = 255;     // green
+            pixel[idx + 2] = 255;     // red
         }
     }
 
@@ -356,6 +356,15 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                     .Z = 0.0f
                 };
 
+                real32 g = sin(value - 3.5f) * 100.0f + 320.0f;
+                real32 h = cos(value - 3.5f) * 100.0f + 240.0f;
+                vector3f point_4 = 
+                {
+                    .X = g,
+                    .Y = h,
+                    .Z = 0.0f, 
+                };
+
                 vector3i color_green = 
                 {
                     .Red = 0,
@@ -363,15 +372,20 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                     .Green = 255,
                 };
 
-                //real32 g = sin(value - 3.5f) * 100.0f + 320.0f;
-                //real32 h = cos(value - 3.5f) * 100.0f + 240.0f;
+                vector3i color_red = 
+                {
+                    .Red = 255,
+                    .Blue = 0,
+                    .Green = 0,
+                };
 
                 ClearBuffer(&GlobalBackBuffer);
                 DrawTriangle(&GlobalBackBuffer, point_1, point_2, point_3, color_green);
+                DrawTriangle(&GlobalBackBuffer, point_1, point_4, point_2, color_red);
+
                 win32_window_dimension dimension = Win32GetWindowDimension(GlobalWindowHandle);
                 Win32DisplayBufferInWindow(deviceContext, dimension.Width, dimension.Height, &GlobalBackBuffer);
 
-                /*
                 LARGE_INTEGER workCounter = Win32GetWallClock();
                 real32 secondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, workCounter);
                 if (secondsElapsedForFrame < GlobalTargetSecondsPerFrame)
@@ -385,7 +399,6 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                         }
                     }
                     real32 testSecondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
-                    //Assert(testSecondsElapsedForFrame < GlobalTargetSecondsPerFrame);
                     while (secondsElapsedForFrame < GlobalTargetSecondsPerFrame)
                     {
                         secondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
@@ -396,7 +409,6 @@ WinMain(HINSTANCE handleInstance, HINSTANCE handlePreviousInstance, LPSTR lpCmdL
                 }
                 LARGE_INTEGER endCounter = Win32GetWallClock();
                 lastCounter = endCounter;
-                */
             }
         }
     }
